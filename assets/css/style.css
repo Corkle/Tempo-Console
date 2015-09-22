@@ -1,0 +1,7 @@
+.nav, .pagination, .carousel, .panel-title a { cursor: pointer; }
+
+.col-center {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+}

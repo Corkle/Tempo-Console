@@ -1,18 +1,40 @@
 <!DOCTYPE html>
-<html lang="en" ng-app="">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, inital-scale=1">
-        <title>Document</title>
-	<link rel="stylesheet" type="text/css" href="assets/css/normalize.css">
-        <link rel="stylesheet" type="text/css" href="assets/css/style.css">        
-    </head>
-    <body>
-        
+<html lang="en" ng-app="tempoApp">
 
-        <script src="assets/libs/angular.1.4.5.min.js"></script>
-        <script src="assets/libs/jquery-1.11.3.js"></script>
-        <script src="app/app.module.js"></script>
-        <script src="assets/js/app.js"></script>
-    </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, inital-scale=1">
+    <title>Tempo Console</title>
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/style.css">
+</head>
+
+<body>
+    <div ng-controller="SpotifyCtrl as spotify">
+        <div class="col-center">
+            <button id="login-btn" type="button" ng-click="spotify.loginUser()">Login</button>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-6">
+
+            </div>
+            <div class="col-sm-6">
+                <h3>{{ spotify.title }}</h3>
+                <ul>
+                    <div ng-repeat="playlist in spotify.playlists">
+                        <li>{{ playlist }}</li>
+                    </div>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/libs/angular/angular.min.js"></script>
+    <script src="assets/libs/angular-bootstrap/ui-bootstrap.min.js"></script>
+    <!--        <script src="assets/libs/angular.1.4.5.min.js"></script>-->
+    <script src="app/app.module.js"></script>
+    <script src="assets/js/app.js"></script>
+</body>
+
 </html>
