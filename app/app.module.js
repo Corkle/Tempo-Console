@@ -62,14 +62,14 @@ angular.module('tempoApp', ['ui.bootstrap'])
                         }
                     })
                     .then(function (response) {
-                            DEBUG(response);
+                            spotifyCtrl.userData = response.data;
                         },
                         function (result) {
                             console.log('Error');
                         });
             } else {
 
-            }
+            }                    
         }
 
 
@@ -78,12 +78,15 @@ angular.module('tempoApp', ['ui.bootstrap'])
 
 
 
-
+        var spotifyCtrl = this;
 
         this.title = "Tempo Console";
 
         this.playlists = ['One Time', 'Scooby Snacks', 'Hot Dogs', 'Mah Jahms'];
 
+    
+    
+    
         this.loginUser = function () {
             DEBUG('LOGIN');
             var client_id = '449c07f2e084462395e230d5ce52ebcd'; // Your client id
@@ -103,6 +106,14 @@ angular.module('tempoApp', ['ui.bootstrap'])
 
             window.location = url;
         };
+    
+    this.loadPlaylists = function() {
+    DEBUG(this.userData);
+    }
+    
+    
+    
+    
 
 
     });
