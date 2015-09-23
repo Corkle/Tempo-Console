@@ -5,3 +5,10 @@
     margin-left: auto;
     margin-right: auto;
 }
+
+.list-group-item {
+    background-color: crimson;
+    border-color: #640036;
+    margin-top: 1px;
+    color: beige
+}

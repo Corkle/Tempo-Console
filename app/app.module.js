@@ -34,13 +34,76 @@ angular.module('tempoApp', ['ui.bootstrap'])
             while (e = r.exec(q)) {
                 hashParams[e[1]] = decodeURIComponent(e[2]);
             }
-            DEBUG(hashParams);
             return hashParams;
+        }
+
+        function getPlaylists() {
+            $http({
+                    url: 'https://api.spotify.com/v1/users/' + spotifyCtrl.userData.id + '/playlists',
+                    method: "GET",
+                    headers: {
+                        'Authorization': 'Bearer ' + access_token
+                    }
+                })
+                .then(function (response) {
+                        spotifyCtrl.playlists = response.data.items;
+                    },
+                    function (result) {
+                        console.log('Error');
+                    });
+        }
+
+        function getTracks(playlistUrl) {
+            var tracks = [];
+            var nextUrl = null;
+
+                $http({
+                        url: nextUrl || playlistUrl + '/tracks',
+                        method: "GET",
+                        headers: {
+                            'Authorization': 'Bearer ' + access_token
+                        }
+                    })
+                    .then(function (response) {
+                            DEBUG(response.data.next);
+                            nextUrl = response.data.next;
+                            var items = response.data.items;
+
+                            items.forEach(function (item) {
+                                var artists = [];
+                                var trackArtists = item.track.artists;
+                                trackArtists.forEach(function (artist) {
+                                    artists.push(artist.name);
+                                });
+
+                                var track = {
+                                    id: item.track.id,
+                                    name: item.track.name,
+                                    preview_url: item.track.preview_url,
+                                    duration_ms: item.track.duration_ms,
+                                    artist: artists.join(", ")
+                                };
+                                tracks.push(track);
+                            });
+                            DEBUG(tracks);
+                        spotifyCtrl.playlistTracks = tracks;
+                        },
+                        function (result) {
+                            DEBUG(result);
+                            console.log('Error');
+                        });
         }
 
 
 
 
+
+        var spotifyCtrl = this;
+
+        this.title = "Tempo Console";
+
+        this.playlists = [];
+    this.playlistTracks = [];
 
         var stateKey = 'spotify_auth_state';
         var params = getHashParams();
@@ -53,7 +116,6 @@ angular.module('tempoApp', ['ui.bootstrap'])
         } else {
             localStorage.removeItem(stateKey);
             if (access_token) {
-                DEBUG('Access Token');
                 $http({
                         url: 'https://api.spotify.com/v1/me',
                         method: "GET",
@@ -63,30 +125,20 @@ angular.module('tempoApp', ['ui.bootstrap'])
                     })
                     .then(function (response) {
                             spotifyCtrl.userData = response.data;
+                            getPlaylists();
+                            spotifyCtrl.showPlaylistData = true;
                         },
                         function (result) {
                             console.log('Error');
                         });
             } else {
 
-            }                    
+            }
         }
 
 
 
 
-
-
-
-        var spotifyCtrl = this;
-
-        this.title = "Tempo Console";
-
-        this.playlists = ['One Time', 'Scooby Snacks', 'Hot Dogs', 'Mah Jahms'];
-
-    
-    
-    
         this.loginUser = function () {
             DEBUG('LOGIN');
             var client_id = '449c07f2e084462395e230d5ce52ebcd'; // Your client id
@@ -106,14 +158,19 @@ angular.module('tempoApp', ['ui.bootstrap'])
 
             window.location = url;
         };
-    
-    this.loadPlaylists = function() {
-    DEBUG(this.userData);
-    }
-    
-    
-    
-    
+
+        this.loadPlaylist = function (playlist) {
+
+
+            getTracks(playlist.href);
+
+        };
+
+
+
+
+
+
 
 
     });

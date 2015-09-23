@@ -15,20 +15,23 @@
             <button id="login-btn" type="button" ng-click="spotify.loginUser()">Login</button>
         </div>
         <div class="col-center">
-        <h3>{{ spotify.title }}</h3></div>
+            <h3>{{ spotify.title }}</h3></div>
 
-        <div class="row">
+        <div class="row" ng-show="spotify.showPlaylistData" ng-init="spotify.showPlaylistData=false">
             <div class="col-sm-6 col-center">
-                <button id="load-playlists-btn" type="button" ng-click="spotify.loadPlaylists()">Load Playlists</button>
-
+               <h3>{{ spotify.userData.display_name }} Playlists</h3>
+                <ul class="list-group">
+                    <div ng-repeat="playlist in spotify.playlists" ng-click="spotify.loadPlaylist(playlist)">
+                        <li class="list-group-item">{{ playlist.name }}</li>
+                    </div>
+                </ul>
             </div>
             
             <div class="col-sm-6 col-center">
-                
-                <ul>
-                    <div ng-repeat="playlist in spotify.playlists">
-                        <li>{{ playlist }}</li>
-                    </div>
+                <ul class="list-group">
+                <div ng-repeat="track in spotify.playlistTracks">
+                    <li class="list-group-item">{{ track.name }}</li>
+                </div>
                 </ul>
             </div>
         </div>
