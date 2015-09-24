@@ -21,7 +21,7 @@ angular.module('tempoApp', ['ui.bootstrap'])
             return timeString;
         };
     })
-    .controller('SpotifyCtrl', function ($http) {
+    .controller('SpotifyCtrl', function ($http, $q) {
 
 
 
@@ -73,7 +73,7 @@ angular.module('tempoApp', ['ui.bootstrap'])
                     });
         }
 
-        function getTracks(playlistUrl, cb) {
+        function getTracksAsync(playlistUrl, cb) {
             var params = {
                 'fields': 'next,items(track(artists,duration_ms,id,name,preview_url))'
             };
@@ -91,7 +91,14 @@ angular.module('tempoApp', ['ui.bootstrap'])
                         var tracks = [];
                         var nextUrl = response.data.next;
                         var items = response.data.items;
-                                            
+                        var tracksChecked = 0;
+
+                        var checkTracksLoaded = function () {
+                            if (tracksChecked === items.length) {
+                                cb(tracks, nextUrl);
+                            }
+                        };
+
                         items.forEach(function (item) {
                             var artists = [];
                             item.track.artists.forEach(function (artist) {
@@ -102,11 +109,16 @@ angular.module('tempoApp', ['ui.bootstrap'])
                             getTrackData(item.track, function (trackData) {
                                 item.track.audio_data = trackData;
                                 tracks.push(item.track);
-                                DEBUG('loadedTracks:' + tracks);
+                                tracksChecked++;
+                                checkTracksLoaded();
+                            }, function (error) {
+                                if (error) {
+                                    item.track.audio_data = {};
+                                    tracks.push(item.track);
+                                    tracksChecked++;
+                                    checkTracksLoaded();
+                                }
                             });
-                        }).then(function () {    // <---- Need to look at promises/callbacks
-                            DEBUG('forEach:', 'Done');
-                            cb(tracks, nextUrl);
                         });
                     },
                     function (result) {
@@ -115,8 +127,7 @@ angular.module('tempoApp', ['ui.bootstrap'])
                     });
         }
 
-        function getTrackData(track, cb) {
-            DEBUG(track.name, track.id);
+        function getTrackData(track, cb, err) {
             var api_key = 'ZALMWFLFASDLR7FHS';
             $http({
                     url: 'http://developer.echonest.com/api/v4/track/profile',
@@ -130,11 +141,14 @@ angular.module('tempoApp', ['ui.bootstrap'])
                     }
                 })
                 .then(function (response) {
-                        cb(response.data.response.track.audio_summary);
+                        if (response.data.response.track) {
+                            cb(response.data.response.track.audio_summary);
+                        } else err('Track not found.');
                     },
                     function (result) {
-                        DEBUG('error:', result);
+                        DEBUG('GetTrackData error:', result);
                         console.log('Error');
+                        err(result);
                     });
         }
 
@@ -143,6 +157,8 @@ angular.module('tempoApp', ['ui.bootstrap'])
 
 
         var spotifyCtrl = this;
+        this.sortType = '';
+        this.sortReverse = false;
 
         this.title = "Tempo Console";
 
@@ -206,11 +222,10 @@ angular.module('tempoApp', ['ui.bootstrap'])
 
         this.loadPlaylist = function (playlist) {
             spotifyCtrl.playlistTracks = [];
-            getTracks(playlist.href + '/tracks', function updateTracks(trackData, nextUrl) {
+            getTracksAsync(playlist.href + '/tracks', function updateTracks(trackData, nextUrl) {
                 Array.prototype.push.apply(spotifyCtrl.playlistTracks, trackData);
-                DEBUG(spotifyCtrl.playlistTracks);
                 if (nextUrl) {
-                    getTracks(nextUrl, function (a, b) {
+                    getTracksAsync(nextUrl, function (a, b) {
                         updateTracks(a, b);
                     });
                 }
@@ -218,6 +233,37 @@ angular.module('tempoApp', ['ui.bootstrap'])
         };
 
 
+
+        //    function getItemInfo(item, cb) {
+        //        $http.get(item.url)
+        //        .then(function(response) {
+        //            cb(response.data);
+        //        }, function(response) {console.log('Error')})
+        //    }    
+        //    
+        //    function getCollection(url, cb) {
+        //        $http.get(url)
+        //        .then(function(response){
+        //            var collectionToReturn = [];
+        //            
+        //            var items = response.data.items;          
+        //            items.forEach(function (item) {
+        //                getItemInfo(item, function(itemInfo) {
+        //                    item.info = itemInfo;
+        //                    collectionToReturn.push(item);
+        //                    if (collectionToReturn.length == items.length) { //assumes no err responses
+        //                        cb(collectionToReturn);
+        //                    }
+        //                });
+        //            })
+        //        },
+        //             function(response) {console.log('Error');})
+        //    }
+        //    
+        //    var existingCollection = [];
+        //    getCollection(collectionUrl, function(collection){
+        //        existingCollection.push(collection);
+        //    })
 
 
 
