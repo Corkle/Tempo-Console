@@ -19,20 +19,31 @@
 
         <div class="row" ng-show="spotify.showPlaylistData" ng-init="spotify.showPlaylistData=false">
             <div class="col-sm-6 col-center">
-               <h3>{{ spotify.userData.display_name }} Playlists</h3>
+                <h3>{{ spotify.userData.display_name }} Playlists</h3>
                 <ul class="list-group">
                     <div ng-repeat="playlist in spotify.playlists" ng-click="spotify.loadPlaylist(playlist)">
                         <li class="list-group-item">{{ playlist.name }}</li>
                     </div>
                 </ul>
             </div>
-            
+
             <div class="col-sm-6 col-center">
-                <ul class="list-group">
-                <div ng-repeat="track in spotify.playlistTracks">
-                    <li class="list-group-item">{{ track.name }}</li>
-                </div>
-                </ul>
+                <table class="table table-striped table-condensed">
+                    <thead>
+                        <tr>
+                            <th>Song</th>
+                            <th>Artist</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="track in spotify.playlistTracks">
+                            <td>{{ track.name }}</td>
+                            <td>{{ track.artist }}</td>
+                            <td>{{ track.duration_ms | duration }}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

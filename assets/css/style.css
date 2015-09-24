@@ -12,3 +12,7 @@
     margin-top: 1px;
     color: beige
 }
+
+td {
+    text-align: left;
+}

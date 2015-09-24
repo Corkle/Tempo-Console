@@ -3,6 +3,24 @@ angular.module('tempoApp', ['ui.bootstrap'])
         $httpProvider.defaults.useXDomain = true;
         delete $httpProvider.defaults.headers.common['X-Requested-With'];
     })
+    .filter('duration', function () {
+        //Returns duration from milliseconds in hh:mm:ss format.
+        return function (millseconds) {
+            var seconds = Math.floor(millseconds / 1000);
+            var h = 3600;
+            var m = 60;
+            var hours = Math.floor(seconds / h);
+            var minutes = Math.floor((seconds % h) / m);
+            var scnds = Math.floor((seconds % m));
+            var timeString, hourString = '';
+            if (scnds < 10) scnds = "0" + scnds;
+            //            if (hours < 10) hours = "0" + hours;
+            if (minutes < 10 && hours > 0) minutes = "0" + minutes;
+            if (hours > 0) hourString = hours + ":";
+            timeString = hourString + minutes + ":" + scnds;
+            return timeString;
+        };
+    })
     .controller('SpotifyCtrl', function ($http) {
 
 
@@ -37,61 +55,87 @@ angular.module('tempoApp', ['ui.bootstrap'])
             return hashParams;
         }
 
-        function getPlaylists() {
+        function getPlaylists(userId, cb) {
             $http({
-                    url: 'https://api.spotify.com/v1/users/' + spotifyCtrl.userData.id + '/playlists',
+                    url: 'https://api.spotify.com/v1/users/' + userId + '/playlists',
                     method: "GET",
                     headers: {
                         'Authorization': 'Bearer ' + access_token
                     }
                 })
                 .then(function (response) {
-                        spotifyCtrl.playlists = response.data.items;
+                        var playlists = response.data.items;
+                        return cb(playlists);
                     },
                     function (result) {
+                        DEBUG('error:', result);
                         console.log('Error');
                     });
         }
 
-        function getTracks(playlistUrl) {
-            var tracks = [];
-            var nextUrl = null;
+        function getTracks(playlistUrl, cb) {
+            var params = {
+                'fields': 'next,items(track(artists,duration_ms,id,name,preview_url))'
+            };
+            var url = playlistUrl.replace("fields=" + params.fields, "");
 
-                $http({
-                        url: nextUrl || playlistUrl + '/tracks',
-                        method: "GET",
-                        headers: {
-                            'Authorization': 'Bearer ' + access_token
-                        }
-                    })
-                    .then(function (response) {
-                            DEBUG(response.data.next);
-                            nextUrl = response.data.next;
-                            var items = response.data.items;
-
-                            items.forEach(function (item) {
-                                var artists = [];
-                                var trackArtists = item.track.artists;
-                                trackArtists.forEach(function (artist) {
-                                    artists.push(artist.name);
-                                });
-
-                                var track = {
-                                    id: item.track.id,
-                                    name: item.track.name,
-                                    preview_url: item.track.preview_url,
-                                    duration_ms: item.track.duration_ms,
-                                    artist: artists.join(", ")
-                                };
-                                tracks.push(track);
+            $http({
+                    url: url,
+                    method: "GET",
+                    headers: {
+                        'Authorization': 'Bearer ' + access_token
+                    },
+                    params: params
+                })
+                .then(function (response) {
+                        var tracks = [];
+                        var nextUrl = response.data.next;
+                        var items = response.data.items;
+                                            
+                        items.forEach(function (item) {
+                            var artists = [];
+                            item.track.artists.forEach(function (artist) {
+                                artists.push(artist.name);
                             });
-                            DEBUG(tracks);
-                        spotifyCtrl.playlistTracks = tracks;
-                        },
-                        function (result) {
-                            DEBUG(result);
-                            console.log('Error');
+                            item.track.artist = artists.join(", ");
+
+                            getTrackData(item.track, function (trackData) {
+                                item.track.audio_data = trackData;
+                                tracks.push(item.track);
+                                DEBUG('loadedTracks:' + tracks);
+                            });
+                        }).then(function () {    // <---- Need to look at promises/callbacks
+                            DEBUG('forEach:', 'Done');
+                            cb(tracks, nextUrl);
                         });
+                    },
+                    function (result) {
+                        DEBUG('error:', result);
+                        console.log('Error');
+                    });
+        }
+
+        function getTrackData(track, cb) {
+            DEBUG(track.name, track.id);
+            var api_key = 'ZALMWFLFASDLR7FHS';
+            $http({
+                    url: 'http://developer.echonest.com/api/v4/track/profile',
+                    method: 'JSONP',
+                    params: {
+                        api_key: api_key,
+                        id: 'spotify:track:' + track.id,
+                        format: 'jsonp',
+                        callback: 'JSON_CALLBACK',
+                        bucket: 'audio_summary'
+                    }
+                })
+                .then(function (response) {
+                        cb(response.data.response.track.audio_summary);
+                    },
+                    function (result) {
+                        DEBUG('error:', result);
+                        console.log('Error');
+                    });
         }
 
 
@@ -103,7 +147,6 @@ angular.module('tempoApp', ['ui.bootstrap'])
         this.title = "Tempo Console";
 
         this.playlists = [];
-    this.playlistTracks = [];
 
         var stateKey = 'spotify_auth_state';
         var params = getHashParams();
@@ -125,10 +168,13 @@ angular.module('tempoApp', ['ui.bootstrap'])
                     })
                     .then(function (response) {
                             spotifyCtrl.userData = response.data;
-                            getPlaylists();
+                            getPlaylists(response.data.id, function (playlists) {
+                                spotifyCtrl.playlists = playlists;
+                            });
                             spotifyCtrl.showPlaylistData = true;
                         },
                         function (result) {
+                            DEBUG('error', result);
                             console.log('Error');
                         });
             } else {
@@ -140,7 +186,6 @@ angular.module('tempoApp', ['ui.bootstrap'])
 
 
         this.loginUser = function () {
-            DEBUG('LOGIN');
             var client_id = '449c07f2e084462395e230d5ce52ebcd'; // Your client id
             var redirect_uri = 'http://localhost:3000/'; // Your redirect uri
 
@@ -160,10 +205,16 @@ angular.module('tempoApp', ['ui.bootstrap'])
         };
 
         this.loadPlaylist = function (playlist) {
-
-
-            getTracks(playlist.href);
-
+            spotifyCtrl.playlistTracks = [];
+            getTracks(playlist.href + '/tracks', function updateTracks(trackData, nextUrl) {
+                Array.prototype.push.apply(spotifyCtrl.playlistTracks, trackData);
+                DEBUG(spotifyCtrl.playlistTracks);
+                if (nextUrl) {
+                    getTracks(nextUrl, function (a, b) {
+                        updateTracks(a, b);
+                    });
+                }
+            });
         };
 
 
@@ -181,8 +232,7 @@ angular.module('tempoApp', ['ui.bootstrap'])
 
 
 
-
-
-function DEBUG(item) {
+function DEBUG(name, item) {
+    console.log(name);
     console.log(item);
 }
