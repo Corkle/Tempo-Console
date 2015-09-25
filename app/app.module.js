@@ -13,15 +13,35 @@ angular.module('tempoApp', ['ui.bootstrap'])
             var minutes = Math.floor((seconds % h) / m);
             var scnds = Math.floor((seconds % m));
             var timeString, hourString = '';
-            if (scnds < 10) scnds = "0" + scnds;
+            if (scnds < 10) {
+                scnds = "0" + scnds;
+            }
             //            if (hours < 10) hours = "0" + hours;
-            if (minutes < 10 && hours > 0) minutes = "0" + minutes;
-            if (hours > 0) hourString = hours + ":";
+            if (minutes < 10 && hours > 0) {
+                minutes = "0" + minutes;
+            }
+            if (hours > 0) {
+                hourString = hours + ":";
+            }
             timeString = hourString + minutes + ":" + scnds;
             return timeString;
         };
     })
-    .controller('SpotifyCtrl', function ($http, $q) {
+    .filter('tempoRange', function () {
+        return function (tracks, min, max) {
+            if (tracks) {
+                var filterList = [];
+                tracks.forEach(function (track) {
+                    var tempo = track.audio_data.tempo;
+                    if (tempo >= min && tempo <= max) {
+                        filterList.push(track);
+                    }
+                });
+                return filterList;
+            }
+        };
+    })
+    .controller('SpotifyCtrl', function ($http, $q, $sce) {
 
 
 
@@ -94,10 +114,17 @@ angular.module('tempoApp', ['ui.bootstrap'])
                         var nextUrl = response.data.next;
                         var items = response.data.items;
                         var tracksChecked = 0;
+                        var errTracks = 0;
 
                         var checkTracksLoaded = function () {
                             if (tracksChecked === items.length) {
-                                defer.resolve(tracks, nextUrl);
+                                if (errTracks > 0) {
+                                    logError(errTracks + ' tracks could not get audio data');
+                                }
+                                defer.resolve({
+                                    tracks: tracks,
+                                    nextUrl: nextUrl
+                                });
                             }
                         };
 
@@ -119,6 +146,7 @@ angular.module('tempoApp', ['ui.bootstrap'])
                                         item.track.audio_data = {};
                                         tracks.push(item.track);
                                         tracksChecked++;
+                                        errTracks++;
                                         checkTracksLoaded();
                                     }
                                 });
@@ -148,12 +176,10 @@ angular.module('tempoApp', ['ui.bootstrap'])
                         if (response.data.response.track) {
                             defer.resolve(response.data.response.track.audio_summary);
                         } else {
-                            defer.reject('Track not found.');
+                            defer.reject('Track data not found.');
                         }
                     },
                     function (err) {
-                        DEBUG('GetTrackDataAsync error:', err);
-                        console.log('Error');
                         defer.reject(err);
                     });
             return defer.promise;
@@ -161,11 +187,12 @@ angular.module('tempoApp', ['ui.bootstrap'])
 
 
 
-
-
         var spotifyCtrl = this;
         this.sortType = '';
         this.sortReverse = false;
+        this.audioSrc = '';
+        this.minTempo = 0;
+        this.maxTempo = 200;
 
         this.title = "Tempo Console";
 
@@ -190,17 +217,13 @@ angular.module('tempoApp', ['ui.bootstrap'])
                         }
                     })
                     .then(function (response) {
-                            spotifyCtrl.userData = response.data;
-                            getPlaylistsAsync(response.data.id)
-                                .then(function (playlists) {
-                                    spotifyCtrl.playlists = playlists;
-                                });
-                            spotifyCtrl.showPlaylistData = true;
-                        },
-                        function (result) {
-                            DEBUG('error', result);
-                            console.log('Error');
-                        });
+                        spotifyCtrl.userData = response.data;
+                        getPlaylistsAsync(response.data.id)
+                            .then(function (playlists) {
+                                spotifyCtrl.playlists = playlists;
+                            });
+                        spotifyCtrl.showPlaylistData = true;
+                    }, logError);
             } else {
 
             }
@@ -229,20 +252,34 @@ angular.module('tempoApp', ['ui.bootstrap'])
         };
 
         this.loadPlaylist = function (playlist) {
-            spotifyCtrl.playlistTracks = [];
+            this.selPlaylist = {
+                id: playlist.id,
+                name: playlist.name
+            };
+            this.selPlaylist.tracks = [];
             getTracksAsync(playlist.href + '/tracks')
-                .then(function updateTracks(trackData, nextUrl) {
-                        Array.prototype.push.apply(spotifyCtrl.playlistTracks, trackData);
-                        if (nextUrl) {
-                            getTracksAsync(nextUrl)
-                                .then(function (a, b) {
-                                    updateTracks(a, b);
-                                });
-                        }
-                    },
-                    function (error) {
-                        console.log('Failed to load tracks');
-                    });
+                .then(updateTracks, logError);
+        };
+
+        function updateTracks(response) {
+            Array.prototype.push.apply(spotifyCtrl.selPlaylist.tracks, response.tracks);
+            if (response.nextUrl) {
+                getTracksAsync(response.nextUrl)
+                    .then(updateTracks, logError);
+            }
+        }
+
+        function logError(err) {
+            console.log(err);
+        }
+
+        this.playPreview = function (track) {
+            var url = $sce.trustAsResourceUrl(track.preview_url);
+            this.audioSrc = url;
+        };
+
+        this.filterTempo = function () {
+            console.log('Min: ' + this.minTempo + ' : Max: ' + this.maxTempo);
         };
 
 
