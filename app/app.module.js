@@ -55,7 +55,8 @@ angular.module('tempoApp', ['ui.bootstrap'])
             return hashParams;
         }
 
-        function getPlaylists(userId, cb) {
+        function getPlaylistsAsync(userId) {
+            var defer = $q.defer();
             $http({
                     url: 'https://api.spotify.com/v1/users/' + userId + '/playlists',
                     method: "GET",
@@ -65,15 +66,16 @@ angular.module('tempoApp', ['ui.bootstrap'])
                 })
                 .then(function (response) {
                         var playlists = response.data.items;
-                        return cb(playlists);
+                        defer.resolve(playlists);
                     },
                     function (result) {
-                        DEBUG('error:', result);
-                        console.log('Error');
+                        defer.reject(result);
                     });
+            return defer.promise;
         }
 
-        function getTracksAsync(playlistUrl, cb) {
+        function getTracksAsync(playlistUrl) {
+            var defer = $q.defer();
             var params = {
                 'fields': 'next,items(track(artists,duration_ms,id,name,preview_url))'
             };
@@ -95,7 +97,7 @@ angular.module('tempoApp', ['ui.bootstrap'])
 
                         var checkTracksLoaded = function () {
                             if (tracksChecked === items.length) {
-                                cb(tracks, nextUrl);
+                                defer.resolve(tracks, nextUrl);
                             }
                         };
 
@@ -106,28 +108,30 @@ angular.module('tempoApp', ['ui.bootstrap'])
                             });
                             item.track.artist = artists.join(", ");
 
-                            getTrackData(item.track, function (trackData) {
-                                item.track.audio_data = trackData;
-                                tracks.push(item.track);
-                                tracksChecked++;
-                                checkTracksLoaded();
-                            }, function (error) {
-                                if (error) {
-                                    item.track.audio_data = {};
+                            getTrackDataAsync(item.track)
+                                .then(function (trackData) {
+                                    item.track.audio_data = trackData;
                                     tracks.push(item.track);
                                     tracksChecked++;
                                     checkTracksLoaded();
-                                }
-                            });
+                                }, function (err) {
+                                    if (err) {
+                                        item.track.audio_data = {};
+                                        tracks.push(item.track);
+                                        tracksChecked++;
+                                        checkTracksLoaded();
+                                    }
+                                });
                         });
                     },
-                    function (result) {
-                        DEBUG('error:', result);
-                        console.log('Error');
+                    function (err) {
+                        defer.reject(err);
                     });
+            return defer.promise;
         }
 
-        function getTrackData(track, cb, err) {
+        function getTrackDataAsync(track) {
+            var defer = $q.defer();
             var api_key = 'ZALMWFLFASDLR7FHS';
             $http({
                     url: 'http://developer.echonest.com/api/v4/track/profile',
@@ -142,14 +146,17 @@ angular.module('tempoApp', ['ui.bootstrap'])
                 })
                 .then(function (response) {
                         if (response.data.response.track) {
-                            cb(response.data.response.track.audio_summary);
-                        } else err('Track not found.');
+                            defer.resolve(response.data.response.track.audio_summary);
+                        } else {
+                            defer.reject('Track not found.');
+                        }
                     },
-                    function (result) {
-                        DEBUG('GetTrackData error:', result);
+                    function (err) {
+                        DEBUG('GetTrackDataAsync error:', err);
                         console.log('Error');
-                        err(result);
+                        defer.reject(err);
                     });
+            return defer.promise;
         }
 
 
@@ -184,9 +191,10 @@ angular.module('tempoApp', ['ui.bootstrap'])
                     })
                     .then(function (response) {
                             spotifyCtrl.userData = response.data;
-                            getPlaylists(response.data.id, function (playlists) {
-                                spotifyCtrl.playlists = playlists;
-                            });
+                            getPlaylistsAsync(response.data.id)
+                                .then(function (playlists) {
+                                    spotifyCtrl.playlists = playlists;
+                                });
                             spotifyCtrl.showPlaylistData = true;
                         },
                         function (result) {
@@ -222,48 +230,74 @@ angular.module('tempoApp', ['ui.bootstrap'])
 
         this.loadPlaylist = function (playlist) {
             spotifyCtrl.playlistTracks = [];
-            getTracksAsync(playlist.href + '/tracks', function updateTracks(trackData, nextUrl) {
-                Array.prototype.push.apply(spotifyCtrl.playlistTracks, trackData);
-                if (nextUrl) {
-                    getTracksAsync(nextUrl, function (a, b) {
-                        updateTracks(a, b);
+            getTracksAsync(playlist.href + '/tracks')
+                .then(function updateTracks(trackData, nextUrl) {
+                        Array.prototype.push.apply(spotifyCtrl.playlistTracks, trackData);
+                        if (nextUrl) {
+                            getTracksAsync(nextUrl)
+                                .then(function (a, b) {
+                                    updateTracks(a, b);
+                                });
+                        }
+                    },
+                    function (error) {
+                        console.log('Failed to load tracks');
                     });
-                }
-            });
         };
 
 
 
-        //    function getItemInfo(item, cb) {
-        //        $http.get(item.url)
-        //        .then(function(response) {
-        //            cb(response.data);
-        //        }, function(response) {console.log('Error')})
-        //    }    
-        //    
-        //    function getCollection(url, cb) {
-        //        $http.get(url)
-        //        .then(function(response){
-        //            var collectionToReturn = [];
-        //            
-        //            var items = response.data.items;          
-        //            items.forEach(function (item) {
-        //                getItemInfo(item, function(itemInfo) {
-        //                    item.info = itemInfo;
-        //                    collectionToReturn.push(item);
-        //                    if (collectionToReturn.length == items.length) { //assumes no err responses
-        //                        cb(collectionToReturn);
-        //                    }
+        //        function getItemInfoAsync(item) {
+        //            var defer = $q.defer();
+        //            $http.get(item.url)
+        //                .then(function (response) {
+        //                    defer.resolve(response.data);
+        //                }, function (error) {
+        //                    defer.reject(error);
         //                });
-        //            })
-        //        },
-        //             function(response) {console.log('Error');})
-        //    }
-        //    
-        //    var existingCollection = [];
-        //    getCollection(collectionUrl, function(collection){
-        //        existingCollection.push(collection);
-        //    })
+        //            return defer.promise;
+        //        }
+        //
+        //        function getCollectionAsync(url) {
+        //            var defer = $q.defer();
+        //            $http.get(url)
+        //                .then(function (response) {
+        //                        var collectionToReturn = [];
+        //                        var itemComplete = 0;
+        //                        var checkComplete = function () {
+        //                            if (itemComplete == items.length) {
+        //                                defer.resolve(collectionToReturn);
+        //                            }
+        //                        };
+        //
+        //                        var items = response.data.items;
+        //                        items.forEach(function (item) {
+        //                            getItemInfoAsync(item)
+        //                                .then(function (itemInfo) {
+        //                                    item.info = itemInfo;
+        //                                    collectionToReturn.push(item);
+        //                                    itemComplete++;
+        //                                    checkComplete();
+        //                                }, function (error) {
+        //                                    itemComplete++;
+        //                                    checkComplete();
+        //                                });
+        //                        });
+        //                    },
+        //                    function (error) {
+        //                        defer.reject(error);
+        //                    });
+        //            return defer.promise;
+        //        }
+        //
+        //        var existingCollection = [];
+        //        getCollectionAsync(collectionUrl)
+        //            .then(function (collection) {
+        //                existingCollection.push(collection);
+        //            },
+        //                 function(error) {
+        //            console.log('Error');
+        //        });
 
 
 
