@@ -7,6 +7,7 @@
     <title>Tempo Console</title>
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/style.css">
+    <link rel="stylesheet" type="text/css" href="assets/libs/angularjs-slider/dist/rzslider.min.css">
 </head>
 
 <body>
@@ -17,12 +18,13 @@
         <div class="col-center">
             <h3>{{ spotify.title }}</h3></div>
 
-        <form class="form-inline col-center">
-            <div class="form-group">
-                <input type="text" placeholder="Min Tempo" ng-model="spotify.minTempo" ng-change="spotify.filterTempo()">
-                <input type="text" placeholder="Max Tempo" ng-model="spotify.maxTempo" ng-change="spotify.filterTempo()">
-            </div>         
-        </form>
+            <div class="col-sm-6 col-sm-offset-3">
+                <rzslider
+                          rz-slider-floor="0"
+                          rz-slider-ceil="200"
+                          rz-slider-model="spotify.minTempo"
+                          rz-slider-high="spotify.maxTempo"></rzslider>
+            </div>
 
         <div class="row" ng-show="spotify.showPlaylistData" ng-init="spotify.showPlaylistData=false">
             <div class="col-sm-6 col-center">
@@ -64,7 +66,7 @@
 
     <script src="assets/libs/angular/angular.min.js"></script>
     <script src="assets/libs/angular-bootstrap/ui-bootstrap.min.js"></script>
-    <!--        <script src="assets/libs/angular.1.4.5.min.js"></script>-->
+    <script src="assets/libs/angularjs-slider/dist/rzslider.min.js"></script>
     <script src="app/app.module.js"></script>
     <script src="assets/js/app.js"></script>
 </body>

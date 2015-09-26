@@ -1,4 +1,4 @@
-angular.module('tempoApp', ['ui.bootstrap'])
+angular.module('tempoApp', ['ui.bootstrap', 'rzModule'])
     .config(function ($httpProvider) {
         $httpProvider.defaults.useXDomain = true;
         delete $httpProvider.defaults.headers.common['X-Requested-With'];
@@ -31,12 +31,13 @@ angular.module('tempoApp', ['ui.bootstrap'])
         return function (tracks, min, max) {
             if (tracks) {
                 var filterList = [];
-                tracks.forEach(function (track) {
+                for (var i = 0; i < tracks.length; i++) {
+                    var track = tracks[i];
                     var tempo = track.audio_data.tempo;
                     if (tempo >= min && tempo <= max) {
                         filterList.push(track);
                     }
-                });
+                }
                 return filterList;
             }
         };
@@ -128,29 +129,34 @@ angular.module('tempoApp', ['ui.bootstrap'])
                             }
                         };
 
-                        items.forEach(function (item) {
+                        var foundTrackData = function (trackData) {
+                            tracks.push(trackData);
+                            tracksChecked++;
+                            checkTracksLoaded();
+                        };
+
+                        var noTrackData = function (response) {
+                                var track = response.track;
+                                track.audio_data = {};
+                                tracks.push(track);
+                                tracksChecked++;
+                                errTracks++;
+                                checkTracksLoaded();
+                        };
+
+                        for (var i = 0; i < items.length; i++) {
+                            var item = items[i];
                             var artists = [];
-                            item.track.artists.forEach(function (artist) {
+
+                            for (var j = 0; j < item.track.artists.length; j++) {
+                                var artist = item.track.artists[j];
                                 artists.push(artist.name);
-                            });
+                            }
                             item.track.artist = artists.join(", ");
 
                             getTrackDataAsync(item.track)
-                                .then(function (trackData) {
-                                    item.track.audio_data = trackData;
-                                    tracks.push(item.track);
-                                    tracksChecked++;
-                                    checkTracksLoaded();
-                                }, function (err) {
-                                    if (err) {
-                                        item.track.audio_data = {};
-                                        tracks.push(item.track);
-                                        tracksChecked++;
-                                        errTracks++;
-                                        checkTracksLoaded();
-                                    }
-                                });
-                        });
+                                .then(foundTrackData, noTrackData);
+                        }
                     },
                     function (err) {
                         defer.reject(err);
@@ -174,20 +180,22 @@ angular.module('tempoApp', ['ui.bootstrap'])
                 })
                 .then(function (response) {
                         if (response.data.response.track) {
-                            defer.resolve(response.data.response.track.audio_summary);
+                            var trackData = track;
+                            trackData.audio_data = response.data.response.track.audio_summary;
+                            defer.resolve(trackData);
                         } else {
-                            defer.reject('Track data not found.');
+                            defer.reject({track: track, err: 'Track data not found.'});
                         }
                     },
                     function (err) {
-                        defer.reject(err);
+                        defer.reject({track: track, err: err});
                     });
             return defer.promise;
         }
 
 
-
         var spotifyCtrl = this;
+
         this.sortType = '';
         this.sortReverse = false;
         this.audioSrc = '';
@@ -279,72 +287,9 @@ angular.module('tempoApp', ['ui.bootstrap'])
         };
 
         this.filterTempo = function () {
-            console.log('Min: ' + this.minTempo + ' : Max: ' + this.maxTempo);
+
         };
-
-
-
-        //        function getItemInfoAsync(item) {
-        //            var defer = $q.defer();
-        //            $http.get(item.url)
-        //                .then(function (response) {
-        //                    defer.resolve(response.data);
-        //                }, function (error) {
-        //                    defer.reject(error);
-        //                });
-        //            return defer.promise;
-        //        }
-        //
-        //        function getCollectionAsync(url) {
-        //            var defer = $q.defer();
-        //            $http.get(url)
-        //                .then(function (response) {
-        //                        var collectionToReturn = [];
-        //                        var itemComplete = 0;
-        //                        var checkComplete = function () {
-        //                            if (itemComplete == items.length) {
-        //                                defer.resolve(collectionToReturn);
-        //                            }
-        //                        };
-        //
-        //                        var items = response.data.items;
-        //                        items.forEach(function (item) {
-        //                            getItemInfoAsync(item)
-        //                                .then(function (itemInfo) {
-        //                                    item.info = itemInfo;
-        //                                    collectionToReturn.push(item);
-        //                                    itemComplete++;
-        //                                    checkComplete();
-        //                                }, function (error) {
-        //                                    itemComplete++;
-        //                                    checkComplete();
-        //                                });
-        //                        });
-        //                    },
-        //                    function (error) {
-        //                        defer.reject(error);
-        //                    });
-        //            return defer.promise;
-        //        }
-        //
-        //        var existingCollection = [];
-        //        getCollectionAsync(collectionUrl)
-        //            .then(function (collection) {
-        //                existingCollection.push(collection);
-        //            },
-        //                 function(error) {
-        //            console.log('Error');
-        //        });
-
-
-
-
-
-
     });
-
-
-
 
 
 
