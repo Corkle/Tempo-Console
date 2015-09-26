@@ -242,7 +242,7 @@ angular.module('tempoApp', ['ui.bootstrap', 'rzModule'])
 
         this.loginUser = function () {
             var client_id = '449c07f2e084462395e230d5ce52ebcd'; // Your client id
-            var redirect_uri = 'http://localhost:3000/'; // Your redirect uri
+            var redirect_uri = 'http://corkle.github.io/Tempo-Console/'; // Your redirect uri
 
             var state = generateRandomString(16);
             localStorage.setItem(stateKey, state);
